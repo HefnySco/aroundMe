@@ -4,12 +4,14 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.aroundme.app.App
+import com.aroundme.app.R
 import com.aroundme.app.data.model.ObjectDeviceLink
 import com.aroundme.app.data.model.ObjectNameLink
 import com.aroundme.app.data.model.ObjectType
@@ -133,7 +135,8 @@ class DeviceDetailActivity : AppCompatActivity() {
     private suspend fun showObjectPicker(
         objects: List<VirtualObjectEntity>,
         byName: Boolean,
-        name: String?
+        name: String?,
+        preChecked: Set<Long> = emptySet()
     ) {
         val device = db.deviceDao().get(deviceId) ?: return
         val linked = if (byName) {
@@ -142,8 +145,9 @@ class DeviceDetailActivity : AppCompatActivity() {
         } else {
             db.objectDao().directObjectIds(deviceId).toMutableSet()
         }
+        val effective = linked + preChecked
         val names = objects.map { "${it.name} (${ObjectType.label(it.type)})" }.toTypedArray()
-        val checked = objects.map { linked.contains(it.id) }.toBooleanArray()
+        val checked = objects.map { effective.contains(it.id) }.toBooleanArray()
         AlertDialog.Builder(this@DeviceDetailActivity)
             .setTitle(if (byName) "Link name \"$name\" to objects" else "Attach device to objects")
             .setMultiChoiceItems(names, checked) { _, which, isChecked ->
@@ -171,7 +175,45 @@ class DeviceDetailActivity : AppCompatActivity() {
                     load()
                 }
             }
+            .setNeutralButton("+ New object") { _, _ ->
+                val keep = objects.indices.filter { checked[it] }
+                    .map { objects[it].id }.toMutableSet()
+                showNewObjectDialog { newId ->
+                    lifecycleScope.launch {
+                        if (newId != null) keep += newId
+                        showObjectPicker(db.objectDao().all(), byName, name, keep)
+                    }
+                }
+            }
             .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showNewObjectDialog(onDone: (Long?) -> Unit) {
+        val v = layoutInflater.inflate(R.layout.dialog_new_object, null)
+        val edit = v.findViewById<android.widget.EditText>(R.id.editName)
+        val spinner = v.findViewById<android.widget.Spinner>(R.id.spinnerType)
+        spinner.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_item, ObjectType.labels
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        AlertDialog.Builder(this)
+            .setTitle("New object")
+            .setView(v)
+            .setPositiveButton("Create") { _, _ ->
+                val n = edit.text.toString().trim()
+                if (n.isEmpty()) return@setPositiveButton
+                val type = spinner.selectedItemPosition + 1
+                lifecycleScope.launch {
+                    val id = db.objectDao().insert(
+                        VirtualObjectEntity(
+                            name = n, type = type, note = null,
+                            createdAt = System.currentTimeMillis()
+                        )
+                    )
+                    onDone(id)
+                }
+            }
+            .setNegativeButton("Back") { _, _ -> onDone(null) }
             .show()
     }
 
