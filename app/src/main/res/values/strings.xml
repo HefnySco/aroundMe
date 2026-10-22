@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Around Me</string>
+    <string name="tab_now">Now</string>
+    <string name="tab_objects">Objects</string>
+    <string name="tab_map">Map</string>
+    <string name="tab_alerts">Alerts</string>
+</resources>
