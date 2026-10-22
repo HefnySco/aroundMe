@@ -59,19 +59,39 @@ class ScanService : LifecycleService() {
     private val classicHits = ConcurrentHashMap<String, ClassicHit>()
     private var bleScanning = false
 
-    private data class BleHit(val name: String?, val rssi: Int)
-    private data class ClassicHit(val name: String?, val rssi: Int?, val ts: Long)
+    private data class BleHit(
+        val name: String?, val rssi: Int,
+        val appearance: Int?, val btClass: Int?,
+        val companyId: Int?, val beacon: Boolean
+    )
+    private data class ClassicHit(
+        val name: String?, val rssi: Int?, val ts: Long, val btClass: Int?
+    )
+    private data class AdvInfo(
+        val appearance: Int?, val btClass: Int?,
+        val companyId: Int?, val beacon: Boolean
+    )
+
+    private fun bleHit(result: ScanResult): BleHit? {
+        val dev = result.device ?: return null
+        val info = BleAdvParser.parse(result.scanRecord?.bytes)
+        val btClass = try { dev.bluetoothClass?.deviceClass } catch (_: Exception) { null }
+        return BleHit(
+            info.name ?: result.scanRecord?.deviceName,
+            result.rssi, info.appearance, btClass, info.companyId, info.beacon
+        )
+    }
 
     private val bleCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val dev = result.device ?: return
-            bleHits[dev.address] = BleHit(result.scanRecord?.deviceName, result.rssi)
+            bleHit(result)?.let { bleHits[dev.address] = it }
         }
 
         override fun onBatchScanResults(results: MutableList<ScanResult>) {
             for (r in results) {
                 val dev = r.device ?: continue
-                bleHits[dev.address] = BleHit(r.scanRecord?.deviceName, r.rssi)
+                bleHit(r)?.let { bleHits[dev.address] = it }
             }
         }
 
@@ -92,9 +112,10 @@ class ScanService : LifecycleService() {
             } ?: return
             val rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE)
             val name = try { dev.name } catch (_: SecurityException) { null }
+            val btClass = try { dev.bluetoothClass?.deviceClass } catch (_: Exception) { null }
             classicHits[dev.address] = ClassicHit(
                 name, if (rssi == Short.MIN_VALUE) null else rssi.toInt(),
-                System.currentTimeMillis()
+                System.currentTimeMillis(), btClass
             )
         }
     }
@@ -211,13 +232,19 @@ class ScanService : LifecycleService() {
             } catch (_: SecurityException) {}
         }
 
+        val advInfo = HashMap<String, AdvInfo>()
+
         if (btScanOn) {
             for ((mac, hit) in bleHits) {
-                rows += sighting("${Transport.BLE}:$mac", cycleId, now, hit.rssi, lat, lng, acc, speed, hit.name)
+                val id = "${Transport.BLE}:$mac"
+                advInfo[id] = AdvInfo(hit.appearance, hit.btClass, hit.companyId, hit.beacon)
+                rows += sighting(id, cycleId, now, hit.rssi, lat, lng, acc, speed, hit.name)
             }
             for ((mac, hit) in classicHits) {
                 if (now - hit.ts < CLASSIC_MAX_AGE_MS) {
-                    rows += sighting("${Transport.BT_CLASSIC}:$mac", cycleId, now, hit.rssi, lat, lng, acc, speed, hit.name)
+                    val id = "${Transport.BT_CLASSIC}:$mac"
+                    advInfo[id] = AdvInfo(null, hit.btClass, null, false)
+                    rows += sighting(id, cycleId, now, hit.rssi, lat, lng, acc, speed, hit.name)
                 }
             }
         }
@@ -235,6 +262,7 @@ class ScanService : LifecycleService() {
             val prevSeen = existing?.lastSeen ?: 0L
             val mac = deviceId.substringAfter(':')
             val transport = deviceId.substringBefore(':').toIntOrNull() ?: 0
+            val adv = advInfo[deviceId]
             if (existing == null) {
                 db.deviceDao().insert(
                     DeviceEntity(
@@ -242,11 +270,18 @@ class ScanService : LifecycleService() {
                         displayName = list.first().label,
                         firstSeen = now, lastSeen = now, seenCount = 1,
                         randomizedMac = Geo.isLocallyAdministered(mac),
-                        movingWithYou = false
+                        movingWithYou = false,
+                        appearance = adv?.appearance, btClass = adv?.btClass,
+                        companyId = adv?.companyId, beacon = adv?.beacon ?: false
                     )
                 )
             } else {
                 db.deviceDao().touch(deviceId, now, list.first().label)
+                if (adv != null) {
+                    db.deviceDao().updateAdvInfo(
+                        deviceId, adv.appearance, adv.btClass, adv.companyId, adv.beacon
+                    )
+                }
             }
             analyzer.onDeviceSeen(deviceId, prevSeen, now, lat, lng)
         }

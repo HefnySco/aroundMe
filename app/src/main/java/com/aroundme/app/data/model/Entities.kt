@@ -1,5 +1,6 @@
 package com.aroundme.app.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.Index
@@ -46,7 +47,11 @@ data class DeviceEntity(
     val lastSeen: Long,
     val seenCount: Int,
     val randomizedMac: Boolean,
-    val movingWithYou: Boolean
+    val movingWithYou: Boolean,
+    val appearance: Int?,
+    val btClass: Int?,
+    val companyId: Int?,
+    @ColumnInfo(defaultValue = "0") val beacon: Boolean
 )
 
 @Entity(

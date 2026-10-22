@@ -53,8 +53,12 @@ class DeviceAdapter(
             h.b.textObjects.setTextColor(COLOR_OBJECT)
         }
         h.b.badgeMoving.visibility = if (d.movingWithYou) View.VISIBLE else View.GONE
-        val cat = Category.label(DeviceClassifier.classify(d.transport, d.displayName))
-        val vendor = DeviceClassifier.vendor(d.mac)
+        val cat = Category.label(
+            DeviceClassifier.classify(
+                d.transport, d.displayName, d.appearance, d.btClass, d.beacon
+            )
+        )
+        val vendor = DeviceClassifier.vendor(d.mac, d.companyId)
         h.b.textMeta.text =
             listOfNotNull("×${d.seenCount}", Format.ago(d.lastSeen), cat, vendor)
                 .joinToString(" · ")

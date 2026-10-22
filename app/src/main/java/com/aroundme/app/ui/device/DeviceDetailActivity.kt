@@ -16,6 +16,8 @@ import com.aroundme.app.data.model.SightingEntity
 import com.aroundme.app.data.model.Transport
 import com.aroundme.app.databinding.ActivityDeviceDetailBinding
 import com.aroundme.app.databinding.ItemSessionBinding
+import com.aroundme.app.util.Category
+import com.aroundme.app.util.DeviceClassifier
 import com.aroundme.app.util.Format
 import com.aroundme.app.util.Geo
 import kotlinx.coroutines.launch
@@ -64,7 +66,16 @@ class DeviceDetailActivity : AppCompatActivity() {
         else "linked to: " + objects.joinToString(", ") { "${it.name} (${ObjectType.label(it.type)})" }
         val rand = if (device.randomizedMac) "  ·  random MAC" else ""
         val moving = if (device.movingWithYou) "  ·  ⚠ moving with you" else ""
-        b.textMeta.text = "$objText\nseen ×${device.seenCount} · first ${Format.dayTime(device.firstSeen)} · last ${Format.ago(device.lastSeen)}$rand$moving"
+        val cat = Category.label(
+            DeviceClassifier.classify(
+                device.transport, device.displayName, device.appearance,
+                device.btClass, device.beacon
+            )
+        )
+        val vendor = DeviceClassifier.vendor(device.mac, device.companyId)
+        val typeText = listOfNotNull(cat, vendor).joinToString(" · ")
+        b.textMeta.text = "$objText\nseen ×${device.seenCount} · first ${Format.dayTime(device.firstSeen)} · last ${Format.ago(device.lastSeen)}$rand$moving" +
+            if (typeText.isNotBlank()) "\ntype: $typeText" else ""
 
         val sightings = db.sightingDao().forDevice(deviceId)
         sessionsAdapter.submit(sessions(sightings).reversed())

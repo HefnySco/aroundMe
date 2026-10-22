@@ -23,6 +23,16 @@ interface DeviceDao {
     @Query("UPDATE devices SET lastSeen = :ts, seenCount = seenCount + 1, displayName = COALESCE(:name, displayName) WHERE id = :id")
     suspend fun touch(id: String, ts: Long, name: String?)
 
+    @Query(
+        """UPDATE devices SET
+           appearance = COALESCE(:appearance, appearance),
+           btClass = COALESCE(:btClass, btClass),
+           companyId = COALESCE(:companyId, companyId),
+           beacon = CASE WHEN :beacon THEN 1 ELSE beacon END
+           WHERE id = :id"""
+    )
+    suspend fun updateAdvInfo(id: String, appearance: Int?, btClass: Int?, companyId: Int?, beacon: Boolean)
+
     @Query("SELECT * FROM devices WHERE id = :id")
     suspend fun get(id: String): DeviceEntity?
 

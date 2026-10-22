@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.aroundme.app.data.model.AlertEntity
 import com.aroundme.app.data.model.DeviceEntity
 import com.aroundme.app.data.model.ObjectDeviceLink
@@ -18,7 +20,7 @@ import com.aroundme.app.data.model.VirtualObjectEntity
         ObjectDeviceLink::class,
         AlertEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,13 +33,24 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var instance: AppDatabase? = null
 
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE devices ADD COLUMN appearance INTEGER")
+                db.execSQL("ALTER TABLE devices ADD COLUMN btClass INTEGER")
+                db.execSQL("ALTER TABLE devices ADD COLUMN companyId INTEGER")
+                db.execSQL("ALTER TABLE devices ADD COLUMN beacon INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "aroundme.db"
-                ).fallbackToDestructiveMigration().build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2)
+                    .fallbackToDestructiveMigration()
+                    .build().also { instance = it }
             }
     }
 }

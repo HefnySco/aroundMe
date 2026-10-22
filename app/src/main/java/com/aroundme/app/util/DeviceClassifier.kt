@@ -1,5 +1,6 @@
 package com.aroundme.app.util
 
+import android.bluetooth.BluetoothClass
 import com.aroundme.app.data.model.Transport
 
 object Category {
@@ -50,7 +51,16 @@ object DeviceClassifier {
         Rule(Category.ROUTER, "router", "tplink", "tp-link", "tp_link", "netgear", "linksys", "ubnt", "unifi", "mikrotik", "dlink", "d-link", "fritz", "asus", "zyxel", "openwrt", "vodafone", "etisalat", "stc", "mobily", "zain", "virginmedia", "sky", "bt home", "homespot", "_ext", "repeater", "mesh", "deco", "orbi", "eero")
     )
 
-    fun classify(transport: Int, name: String?): Int {
+    fun classify(
+        transport: Int,
+        name: String?,
+        appearance: Int? = null,
+        btClass: Int? = null,
+        beacon: Boolean = false
+    ): Int {
+        if (beacon) return Category.BEACON
+        appearance?.let { appearanceCategory(it) }?.let { return it }
+        btClass?.let { btClassCategory(it) }?.let { return it }
         val n = name?.lowercase() ?: ""
         if (n.isNotEmpty()) {
             for (r in rules) {
@@ -60,6 +70,42 @@ object DeviceClassifier {
         return when (transport) {
             Transport.WIFI_AP -> Category.ROUTER
             else -> Category.UNKNOWN
+        }
+    }
+
+    private fun appearanceCategory(appearance: Int): Int? =
+        when ((appearance shr 6) and 0x3FF) {
+            1 -> Category.PHONE
+            2 -> Category.COMPUTER
+            3, 4 -> Category.WATCH
+            5 -> Category.TV
+            8, 9 -> Category.BEACON
+            10 -> Category.AUDIO
+            13 -> Category.WATCH
+            15 -> Category.COMPUTER
+            17 -> Category.WATCH
+            in 37..44 -> Category.AUDIO
+            else -> null
+        }
+
+    private fun btClassCategory(deviceClass: Int): Int? {
+        val major = deviceClass and 0x1F00
+        return when (major) {
+            BluetoothClass.Device.Major.AUDIO_VIDEO -> when (deviceClass) {
+                BluetoothClass.Device.AUDIO_VIDEO_CAR_AUDIO -> Category.CAR
+                BluetoothClass.Device.AUDIO_VIDEO_SET_TOP_BOX,
+                BluetoothClass.Device.AUDIO_VIDEO_VIDEO_MONITOR,
+                BluetoothClass.Device.AUDIO_VIDEO_VIDEO_DISPLAY_AND_LOUDSPEAKER,
+                BluetoothClass.Device.AUDIO_VIDEO_VCR -> Category.TV
+                else -> Category.AUDIO
+            }
+            BluetoothClass.Device.Major.PHONE -> Category.PHONE
+            BluetoothClass.Device.Major.COMPUTER -> Category.COMPUTER
+            BluetoothClass.Device.Major.WEARABLE -> Category.WATCH
+            BluetoothClass.Device.Major.HEALTH -> Category.WATCH
+            BluetoothClass.Device.Major.IMAGING -> Category.CAMERA
+            BluetoothClass.Device.Major.TOY -> Category.IOT
+            else -> null
         }
     }
 
@@ -97,6 +143,18 @@ object DeviceClassifier {
         "00:25:9C" to "Cisco-Linksys", "68:7F:74" to "Cisco-Linksys"
     )
 
-    fun vendor(mac: String): String? =
-        if (mac.length >= 8) oui[mac.substring(0, 8).uppercase()] else null
+    private val company = mapOf(
+        0x004C to "Apple", 0x00E0 to "Google", 0x0075 to "Samsung",
+        0x0006 to "Microsoft", 0x000F to "Broadcom", 0x000A to "Qualcomm",
+        0x0002 to "Intel", 0x012D to "Sony", 0x009E to "Bose",
+        0x0087 to "Garmin", 0x0059 to "Nordic", 0x00D2 to "Cypress",
+        0x0131 to "Cypress", 0x030B to "Xiaomi"
+    )
+
+    fun vendor(mac: String, companyId: Int? = null): String? {
+        if (mac.length >= 8) {
+            oui[mac.substring(0, 8).uppercase()]?.let { return it }
+        }
+        return companyId?.let { company[it] }
+    }
 }
