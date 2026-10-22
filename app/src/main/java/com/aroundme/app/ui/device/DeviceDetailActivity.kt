@@ -44,7 +44,9 @@ class DeviceDetailActivity : AppCompatActivity() {
         b.listSessions.adapter = sessionsAdapter
         b.map.setMultiTouchControls(true)
 
-        b.btnAttach.setOnClickListener { showAttachDialog() }
+        b.btnAttachMac.setOnClickListener { attach(byName = false) }
+        b.btnAttachName.setOnClickListener { attach(byName = true) }
+        b.btnAttachName.isEnabled = false
 
         lifecycleScope.launch { load() }
     }
@@ -64,6 +66,7 @@ class DeviceDetailActivity : AppCompatActivity() {
         val objects = db.objectDao().objectsForDevice(deviceId, device.displayName)
         b.textName.text = device.displayName?.takeIf { it.isNotBlank() } ?: "(no name)"
         b.textMac.text = "${device.mac}  ·  ${Transport.label(device.transport)}"
+        b.btnAttachName.isEnabled = !device.displayName.isNullOrBlank()
         val objText = if (objects.isEmpty()) "not linked to any object"
         else "linked to: " + objects.joinToString(", ") { "${it.name} (${ObjectType.label(it.type)})" }
         val rand = if (device.randomizedMac) "  ·  random MAC" else ""
@@ -113,7 +116,7 @@ class DeviceDetailActivity : AppCompatActivity() {
         b.map.invalidate()
     }
 
-    private fun showAttachDialog() {
+    private fun attach(byName: Boolean) {
         lifecycleScope.launch {
             val device = db.deviceDao().get(deviceId) ?: return@launch
             val objects = db.objectDao().all()
@@ -123,23 +126,7 @@ class DeviceDetailActivity : AppCompatActivity() {
                     .setPositiveButton("OK", null).show()
                 return@launch
             }
-            val devName = device.displayName?.takeIf { it.isNotBlank() }
-            if (devName != null) {
-                AlertDialog.Builder(this@DeviceDetailActivity)
-                    .setTitle("Link \"$devName\" how?")
-                    .setItems(
-                        arrayOf(
-                            "Only this MAC (${device.mac})",
-                            "Any device named \"$devName\""
-                        )
-                    ) { _, which ->
-                        lifecycleScope.launch { showObjectPicker(objects, byName = which == 1, name = devName) }
-                    }
-                    .setNegativeButton("Cancel", null)
-                    .show()
-            } else {
-                showObjectPicker(objects, byName = false, name = null)
-            }
+            showObjectPicker(objects, byName, device.displayName)
         }
     }
 

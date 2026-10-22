@@ -30,11 +30,24 @@
             android:textSize="12sp"
             android:paddingVertical="4dp" />
 
-        <Button
-            android:id="@+id/btnAttach"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Attach to object" />
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnAttachMac"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Attach by MAC" />
+
+            <Button
+                android:id="@+id/btnAttachName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Attach by name" />
+        </LinearLayout>
 
         <org.osmdroid.views.MapView
             android:id="@+id/map"
