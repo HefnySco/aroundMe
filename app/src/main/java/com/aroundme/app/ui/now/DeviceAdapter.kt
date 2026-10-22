@@ -7,17 +7,23 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.aroundme.app.R
-import com.aroundme.app.data.model.DeviceWithObjects
 import com.aroundme.app.data.model.Transport
+import com.aroundme.app.data.model.DeviceEntity
 import com.aroundme.app.databinding.ItemDeviceBinding
 import com.aroundme.app.util.Category
 import com.aroundme.app.util.Consts
 import com.aroundme.app.util.DeviceClassifier
 import com.aroundme.app.util.Format
 
+data class NowItem(
+    val device: DeviceEntity,
+    val objectNames: String?,
+    val memberCount: Int
+)
+
 class DeviceAdapter(
-    private val onClick: (DeviceWithObjects) -> Unit
-) : ListAdapter<DeviceWithObjects, DeviceAdapter.VH>(DIFF) {
+    private val onClick: (NowItem) -> Unit
+) : ListAdapter<NowItem, DeviceAdapter.VH>(DIFF) {
 
     class VH(val b: ItemDeviceBinding) : RecyclerView.ViewHolder(b.root) {
         val defaultCardColor = b.root.cardBackgroundColor
@@ -42,7 +48,9 @@ class DeviceAdapter(
         h.b.iconTransport.setColorFilter(
             if (d.transport == Transport.WIFI_AP) COLOR_WIFI else COLOR_BT
         )
-        h.b.textName.text = d.displayName?.takeIf { it.isNotBlank() } ?: "(no name)"
+        val merged = if (item.memberCount > 1) "  ·  ×${item.memberCount} MACs" else ""
+        h.b.textName.text =
+            (d.displayName?.takeIf { it.isNotBlank() } ?: "(no name)") + merged
         val rand = if (d.randomizedMac) "  ·  random MAC" else ""
         h.b.textMac.text = "${d.mac}  ·  ${Transport.label(d.transport)}$rand"
         if (item.objectNames.isNullOrBlank()) {
@@ -71,11 +79,11 @@ class DeviceAdapter(
         private const val COLOR_BT = 0xFF2979FF.toInt()
         private const val COLOR_OBJECT = 0xFF8E24AA.toInt()
 
-        val DIFF = object : DiffUtil.ItemCallback<DeviceWithObjects>() {
-            override fun areItemsTheSame(a: DeviceWithObjects, b: DeviceWithObjects) =
+        val DIFF = object : DiffUtil.ItemCallback<NowItem>() {
+            override fun areItemsTheSame(a: NowItem, b: NowItem) =
                 a.device.id == b.device.id
 
-            override fun areContentsTheSame(a: DeviceWithObjects, b: DeviceWithObjects) =
+            override fun areContentsTheSame(a: NowItem, b: NowItem) =
                 a == b
         }
     }

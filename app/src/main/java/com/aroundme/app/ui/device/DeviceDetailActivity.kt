@@ -11,9 +11,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.aroundme.app.App
 import com.aroundme.app.data.model.ObjectDeviceLink
+import com.aroundme.app.data.model.ObjectNameLink
 import com.aroundme.app.data.model.ObjectType
 import com.aroundme.app.data.model.SightingEntity
 import com.aroundme.app.data.model.Transport
+import com.aroundme.app.data.model.VirtualObjectEntity
 import com.aroundme.app.databinding.ActivityDeviceDetailBinding
 import com.aroundme.app.databinding.ItemSessionBinding
 import com.aroundme.app.util.Category
@@ -59,7 +61,7 @@ class DeviceDetailActivity : AppCompatActivity() {
 
     private suspend fun load() {
         val device = db.deviceDao().get(deviceId) ?: return
-        val objects = db.objectDao().objectsForDevice(deviceId)
+        val objects = db.objectDao().objectsForDevice(deviceId, device.displayName)
         b.textName.text = device.displayName?.takeIf { it.isNotBlank() } ?: "(no name)"
         b.textMac.text = "${device.mac}  ·  ${Transport.label(device.transport)}"
         val objText = if (objects.isEmpty()) "not linked to any object"
@@ -113,6 +115,7 @@ class DeviceDetailActivity : AppCompatActivity() {
 
     private fun showAttachDialog() {
         lifecycleScope.launch {
+            val device = db.deviceDao().get(deviceId) ?: return@launch
             val objects = db.objectDao().all()
             if (objects.isEmpty()) {
                 AlertDialog.Builder(this@DeviceDetailActivity)
@@ -120,30 +123,69 @@ class DeviceDetailActivity : AppCompatActivity() {
                     .setPositiveButton("OK", null).show()
                 return@launch
             }
-            val linked = db.objectDao().objectsForDevice(deviceId).map { it.id }.toMutableSet()
-            val names = objects.map { "${it.name} (${ObjectType.label(it.type)})" }.toTypedArray()
-            val checked = objects.map { linked.contains(it.id) }.toBooleanArray()
-            AlertDialog.Builder(this@DeviceDetailActivity)
-                .setTitle("Attach to objects")
-                .setMultiChoiceItems(names, checked) { _, which, isChecked ->
-                    checked[which] = isChecked
-                }
-                .setPositiveButton("Save") { _, _ ->
-                    lifecycleScope.launch {
-                        val newSet = objects.indices.filter { checked[it] }
-                            .map { objects[it].id }.toSet()
+            val devName = device.displayName?.takeIf { it.isNotBlank() }
+            if (devName != null) {
+                AlertDialog.Builder(this@DeviceDetailActivity)
+                    .setTitle("Link \"$devName\" how?")
+                    .setItems(
+                        arrayOf(
+                            "Only this MAC (${device.mac})",
+                            "Any device named \"$devName\""
+                        )
+                    ) { _, which ->
+                        lifecycleScope.launch { showObjectPicker(objects, byName = which == 1, name = devName) }
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            } else {
+                showObjectPicker(objects, byName = false, name = null)
+            }
+        }
+    }
+
+    private suspend fun showObjectPicker(
+        objects: List<VirtualObjectEntity>,
+        byName: Boolean,
+        name: String?
+    ) {
+        val device = db.deviceDao().get(deviceId) ?: return
+        val linked = if (byName) {
+            objects.filter { name in db.objectDao().namesForObject(it.id) }
+                .map { it.id }.toMutableSet()
+        } else {
+            db.objectDao().directObjectIds(deviceId).toMutableSet()
+        }
+        val names = objects.map { "${it.name} (${ObjectType.label(it.type)})" }.toTypedArray()
+        val checked = objects.map { linked.contains(it.id) }.toBooleanArray()
+        AlertDialog.Builder(this@DeviceDetailActivity)
+            .setTitle(if (byName) "Link name \"$name\" to objects" else "Attach device to objects")
+            .setMultiChoiceItems(names, checked) { _, which, isChecked ->
+                checked[which] = isChecked
+            }
+            .setPositiveButton("Save") { _, _ ->
+                lifecycleScope.launch {
+                    val newSet = objects.indices.filter { checked[it] }
+                        .map { objects[it].id }.toSet()
+                    if (byName && name != null) {
+                        for (id in newSet - linked) {
+                            db.objectDao().linkName(ObjectNameLink(id, name))
+                        }
+                        for (id in linked - newSet) {
+                            db.objectDao().unlinkName(id, name)
+                        }
+                    } else {
                         for (id in newSet - linked) {
                             db.objectDao().link(ObjectDeviceLink(id, deviceId))
                         }
                         for (id in linked - newSet) {
                             db.objectDao().unlink(id, deviceId)
                         }
-                        load()
                     }
+                    load()
                 }
-                .setNegativeButton("Cancel", null)
-                .show()
-        }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun sessions(list: List<SightingEntity>): List<Session> {

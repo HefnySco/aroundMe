@@ -13,8 +13,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.aroundme.app.App
-import com.aroundme.app.data.model.DeviceWithObjects
 import com.aroundme.app.databinding.FragmentNowBinding
+import com.aroundme.app.ui.SettingsActivity
 import com.aroundme.app.scan.ScanService
 import com.aroundme.app.ui.device.DeviceDetailActivity
 import com.aroundme.app.util.Perms
@@ -102,6 +102,10 @@ class NowFragment : Fragment() {
         b.switchWifi.setOnCheckedChangeListener { _, v -> prefs.wifiScan = v }
         b.switchBt.setOnCheckedChangeListener { _, v -> prefs.btScan = v }
 
+        b.btnSettings.setOnClickListener {
+            startActivity(Intent(requireContext(), SettingsActivity::class.java))
+        }
+
         b.switchTracking.setOnCheckedChangeListener { _, checked ->
             if (checked) startTracking() else {
                 ScanService.stop(requireContext())
@@ -126,14 +130,29 @@ class NowFragment : Fragment() {
                     val now = System.currentTimeMillis()
                     val cutoff = now - prefs.hideAfterMs
                     val namesByDev = links.groupBy({ it.deviceId }, { it.objectName })
-                    devs.filter { it.lastSeen > cutoff }.map {
-                        DeviceWithObjects(it, namesByDev[it.id]?.joinToString(", "))
-                    }.let { list ->
-                        when (prefs.sortMode) {
-                            Prefs.SORT_LATEST -> list.sortedByDescending { it.device.lastSeen }
-                            Prefs.SORT_MOST_SEEN -> list.sortedByDescending { it.device.seenCount }
-                            else -> list.sortedByDescending { it.device.firstSeen }
+                    val visible = devs.filter { it.lastSeen > cutoff }.map {
+                        NowItem(it, namesByDev[it.id]?.joinToString(", "), 1)
+                    }
+                    val merged = if (!prefs.groupByName) visible else {
+                        val map = LinkedHashMap<String, NowItem>()
+                        for (item in visible) {
+                            val d = item.device
+                            val key =
+                                if (d.randomizedMac && !d.displayName.isNullOrBlank())
+                                    "N:${d.displayName}" else d.id
+                            val prev = map[key]
+                            map[key] = if (prev == null) item else NowItem(
+                                if (d.lastSeen >= prev.device.lastSeen) d else prev.device,
+                                prev.objectNames ?: item.objectNames,
+                                prev.memberCount + 1
+                            )
                         }
+                        map.values.toList()
+                    }
+                    when (prefs.sortMode) {
+                        Prefs.SORT_LATEST -> merged.sortedByDescending { it.device.lastSeen }
+                        Prefs.SORT_MOST_SEEN -> merged.sortedByDescending { it.device.seenCount }
+                        else -> merged.sortedByDescending { it.device.firstSeen }
                     }
                 }.collect { list ->
                     adapter.submitList(list)

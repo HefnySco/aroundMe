@@ -29,13 +29,13 @@ class Analyzer(private val context: Context, private val db: AppDatabase) {
         lat: Double?,
         lng: Double?
     ) {
-        val objects = db.objectDao().objectsForDevice(deviceId)
+        val device = db.deviceDao().get(deviceId)
+        val objects = db.objectDao().objectsForDevice(deviceId, device?.displayName)
         val reappeared = prevLastSeen == 0L || now - prevLastSeen > REAPPEAR_MS
         val hasPlaceOnly = objects.isNotEmpty() && objects.all { it.type == ObjectType.PLACE }
 
         if (reappeared && objects.isNotEmpty()) {
             val names = objects.joinToString(", ") { it.name }
-            val device = db.deviceDao().get(deviceId)
             val label = device?.displayName?.takeIf { it.isNotBlank() } ?: device?.mac ?: deviceId
             insertAlert(
                 AlertType.OBJECT_APPEARED, deviceId, lat, lng,
@@ -89,9 +89,13 @@ class Analyzer(private val context: Context, private val db: AppDatabase) {
             val b = db.deviceDao().get(row.deviceB)
             val la = a?.displayName?.takeIf { it.isNotBlank() } ?: a?.mac ?: row.deviceA
             val lb = b?.displayName?.takeIf { it.isNotBlank() } ?: b?.mac ?: row.deviceB
-            val sharedObjects = db.objectDao().objectsForDevice(row.deviceA)
+            val sharedObjects = db.objectDao()
+                .objectsForDevice(row.deviceA, a?.displayName)
                 .map { it.id }.toSet()
-                .intersect(db.objectDao().objectsForDevice(row.deviceB).map { it.id }.toSet())
+                .intersect(
+                    db.objectDao().objectsForDevice(row.deviceB, b?.displayName)
+                        .map { it.id }.toSet()
+                )
             if (sharedObjects.isNotEmpty()) continue
             val msg = "$la and $lb appear together (${row.cycles}×) — maybe one object?"
             if (db.alertDao().countSimilar(msg, now - 24 * 3600_000L) > 0) continue

@@ -9,6 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.aroundme.app.data.model.AlertEntity
 import com.aroundme.app.data.model.DeviceEntity
 import com.aroundme.app.data.model.ObjectDeviceLink
+import com.aroundme.app.data.model.ObjectNameLink
 import com.aroundme.app.data.model.SightingEntity
 import com.aroundme.app.data.model.VirtualObjectEntity
 
@@ -18,9 +19,10 @@ import com.aroundme.app.data.model.VirtualObjectEntity
         SightingEntity::class,
         VirtualObjectEntity::class,
         ObjectDeviceLink::class,
+        ObjectNameLink::class,
         AlertEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -42,13 +44,23 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS object_names (" +
+                        "objectId INTEGER NOT NULL, name TEXT NOT NULL, " +
+                        "PRIMARY KEY(objectId, name))"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "aroundme.db"
-                ).addMigrations(MIGRATION_1_2)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .fallbackToDestructiveMigration()
                     .build().also { instance = it }
             }

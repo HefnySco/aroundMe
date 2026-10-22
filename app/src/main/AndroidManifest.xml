@@ -38,6 +38,7 @@
         </activity>
         <activity android:name=".ui.device.DeviceDetailActivity" />
         <activity android:name=".ui.objects.ObjectDetailActivity" />
+        <activity android:name=".ui.SettingsActivity" />
 
         <service
             android:name=".scan.ScanService"

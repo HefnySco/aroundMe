@@ -11,6 +11,7 @@ import com.aroundme.app.data.model.CoOccurRow
 import com.aroundme.app.data.model.DeviceEntity
 import com.aroundme.app.data.model.DeviceWithObjects
 import com.aroundme.app.data.model.ObjectDeviceLink
+import com.aroundme.app.data.model.ObjectNameLink
 import com.aroundme.app.data.model.SightingEntity
 import com.aroundme.app.data.model.VirtualObjectEntity
 import kotlinx.coroutines.flow.Flow
@@ -58,6 +59,9 @@ interface DeviceDao {
 
     @Query("SELECT * FROM devices ORDER BY lastSeen DESC LIMIT :limit")
     suspend fun recent(limit: Int): List<DeviceEntity>
+
+    @Query("DELETE FROM devices")
+    suspend fun clearAll()
 }
 
 @Dao
@@ -106,6 +110,9 @@ interface SightingDao {
            LIMIT :limit"""
     )
     suspend fun coOccurring(since: Long, minCycles: Int, limit: Int): List<CoOccurRow>
+
+    @Query("DELETE FROM sightings")
+    suspend fun clearAll()
 }
 
 @Dao
@@ -140,16 +147,54 @@ interface ObjectDao {
     @Query("DELETE FROM object_devices WHERE objectId = :objectId AND deviceId = :deviceId")
     suspend fun unlink(objectId: Long, deviceId: String)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun linkName(link: ObjectNameLink)
+
+    @Query("DELETE FROM object_names WHERE objectId = :objectId AND name = :name")
+    suspend fun unlinkName(objectId: Long, name: String)
+
+    @Query("SELECT name FROM object_names WHERE objectId = :objectId")
+    suspend fun namesForObject(objectId: Long): List<String>
+
+    @Query("SELECT objectId FROM object_devices WHERE deviceId = :deviceId")
+    suspend fun directObjectIds(deviceId: String): List<Long>
+
     @Query("SELECT deviceId FROM object_devices WHERE objectId = :objectId")
+    suspend fun directDeviceIdsForObject(objectId: Long): List<String>
+
+    @Query(
+        """SELECT deviceId FROM object_devices WHERE objectId = :objectId
+           UNION
+           SELECT d.id FROM devices d
+           JOIN object_names onl ON d.displayName = onl.name AND d.displayName <> ''
+           WHERE onl.objectId = :objectId"""
+    )
     suspend fun deviceIdsForObject(objectId: Long): List<String>
 
-    @Query("SELECT o.* FROM objects o JOIN object_devices od ON o.id = od.objectId WHERE od.deviceId = :deviceId")
-    suspend fun objectsForDevice(deviceId: String): List<VirtualObjectEntity>
+    @Query(
+        """SELECT * FROM objects WHERE id IN (
+               SELECT objectId FROM object_devices WHERE deviceId = :deviceId
+               UNION
+               SELECT objectId FROM object_names WHERE name = :displayName
+           )"""
+    )
+    suspend fun objectsForDevice(deviceId: String, displayName: String?): List<VirtualObjectEntity>
+
+    @Query("SELECT DISTINCT displayName FROM devices WHERE displayName IS NOT NULL AND displayName <> '' ORDER BY displayName")
+    suspend fun distinctNames(): List<String>
 
     @Query("SELECT COUNT(*) FROM object_devices WHERE objectId = :objectId")
     suspend fun deviceCount(objectId: Long): Int
 
-    @Query("SELECT od.deviceId, o.name AS objectName FROM object_devices od JOIN objects o ON o.id = od.objectId")
+    @Query(
+        """SELECT od.deviceId AS deviceId, o.name AS objectName
+           FROM object_devices od JOIN objects o ON o.id = od.objectId
+           UNION
+           SELECT d.id AS deviceId, o.name AS objectName
+           FROM object_names onl
+           JOIN objects o ON o.id = onl.objectId
+           JOIN devices d ON d.displayName = onl.name AND d.displayName <> ''"""
+    )
     fun allLinksFlow(): Flow<List<DeviceLinkRow>>
 }
 
@@ -181,4 +226,7 @@ interface AlertDao {
 
     @Query("SELECT COUNT(*) FROM alerts WHERE message = :message AND timestamp > :since")
     suspend fun countSimilar(message: String, since: Long): Int
+
+    @Query("DELETE FROM alerts")
+    suspend fun clearAll()
 }

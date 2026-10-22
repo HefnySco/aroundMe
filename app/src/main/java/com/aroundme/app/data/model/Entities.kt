@@ -90,6 +90,15 @@ data class ObjectDeviceLink(
     val deviceId: String
 )
 
+@Entity(
+    tableName = "object_names",
+    primaryKeys = ["objectId", "name"]
+)
+data class ObjectNameLink(
+    val objectId: Long,
+    val name: String
+)
+
 @Entity(tableName = "alerts", indices = [Index("timestamp")])
 data class AlertEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
