@@ -39,6 +39,14 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_HAS_LOC, false)
         set(v) = sp.edit().putBoolean(KEY_HAS_LOC, v).apply()
 
+    var hideAfterMs: Long
+        get() = sp.getLong(KEY_HIDE, 120_000L)
+        set(v) = sp.edit().putLong(KEY_HIDE, v).apply()
+
+    var mapMode: Int
+        get() = sp.getInt(KEY_MAP_MODE, 0)
+        set(v) = sp.edit().putInt(KEY_MAP_MODE, v).apply()
+
     companion object {
         private const val KEY_WIFI = "wifi_scan"
         private const val KEY_BT = "bt_scan"
@@ -48,8 +56,13 @@ class Prefs(context: Context) {
         private const val KEY_LAT = "last_lat"
         private const val KEY_LNG = "last_lng"
         private const val KEY_HAS_LOC = "has_loc"
+        private const val KEY_HIDE = "hide_after"
+        private const val KEY_MAP_MODE = "map_mode"
 
         val INTERVAL_OPTIONS = longArrayOf(10_000L, 20_000L, 30_000L, 60_000L, 120_000L)
         val INTERVAL_LABELS = arrayOf("10 s", "20 s", "30 s", "1 min", "2 min")
+
+        val HIDE_OPTIONS = longArrayOf(30_000L, 60_000L, 120_000L, 300_000L, 900_000L, 3_600_000L)
+        val HIDE_LABELS = arrayOf("30 s", "1 min", "2 min", "5 min", "15 min", "1 h")
     }
 }

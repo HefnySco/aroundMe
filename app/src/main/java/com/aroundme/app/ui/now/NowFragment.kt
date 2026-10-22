@@ -13,11 +13,15 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.aroundme.app.App
+import com.aroundme.app.data.model.DeviceWithObjects
 import com.aroundme.app.databinding.FragmentNowBinding
 import com.aroundme.app.scan.ScanService
 import com.aroundme.app.ui.device.DeviceDetailActivity
 import com.aroundme.app.util.Perms
 import com.aroundme.app.util.Prefs
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 
 class NowFragment : Fragment() {
@@ -32,6 +36,7 @@ class NowFragment : Fragment() {
         )
     }
     private var spinnerReady = false
+    private var hideSpinnerReady = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -62,6 +67,21 @@ class NowFragment : Fragment() {
             override fun onNothingSelected(p: AdapterView<*>?) {}
         }
 
+        val hideAdapter = ArrayAdapter(
+            requireContext(), android.R.layout.simple_spinner_item, Prefs.HIDE_LABELS
+        )
+        hideAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        b.spinnerHide.adapter = hideAdapter
+        val hideIdx = Prefs.HIDE_OPTIONS.indexOf(prefs.hideAfterMs)
+        b.spinnerHide.setSelection(if (hideIdx >= 0) hideIdx else 2)
+        b.spinnerHide.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                if (hideSpinnerReady) prefs.hideAfterMs = Prefs.HIDE_OPTIONS[pos]
+                hideSpinnerReady = true
+            }
+            override fun onNothingSelected(p: AdapterView<*>?) {}
+        }
+
         b.switchWifi.isChecked = prefs.wifiScan
         b.switchBt.isChecked = prefs.btScan
         b.switchWifi.setOnCheckedChangeListener { _, v -> prefs.wifiScan = v }
@@ -76,15 +96,30 @@ class NowFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                (requireActivity().application as App).db.deviceDao()
-                    .liveDevices(System.currentTimeMillis() - LIVE_WINDOW_MS)
-                    .collect { list ->
-                        adapter.submitList(list)
-                        b.empty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
-                        b.textStatus.text =
-                            if (ScanService.isRunning) "Tracking — ${list.size} devices around"
-                            else "Tracking is off — showing last seen"
+                val db = (requireActivity().application as App).db
+                val ticker = flow {
+                    while (true) {
+                        emit(Unit)
+                        delay(REFRESH_TICK_MS)
                     }
+                }
+                combine(
+                    db.deviceDao().allDevicesFlow(),
+                    db.objectDao().allLinksFlow(),
+                    ticker
+                ) { devs, links, _ ->
+                    val cutoff = System.currentTimeMillis() - prefs.hideAfterMs
+                    val namesByDev = links.groupBy({ it.deviceId }, { it.objectName })
+                    devs.filter { it.lastSeen > cutoff }.map {
+                        DeviceWithObjects(it, namesByDev[it.id]?.joinToString(", "))
+                    }
+                }.collect { list ->
+                    adapter.submitList(list)
+                    b.empty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+                    b.textStatus.text =
+                        if (ScanService.isRunning) "Tracking — ${list.size} devices around"
+                        else "Tracking is off — showing last seen"
+                }
             }
         }
     }
@@ -136,6 +171,6 @@ class NowFragment : Fragment() {
     }
 
     companion object {
-        private const val LIVE_WINDOW_MS = 120_000L
+        private const val REFRESH_TICK_MS = 10_000L
     }
 }

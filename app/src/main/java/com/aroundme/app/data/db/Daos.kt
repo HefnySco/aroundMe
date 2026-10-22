@@ -32,6 +32,9 @@ interface DeviceDao {
     @Query("SELECT * FROM devices WHERE lastSeen > :since ORDER BY lastSeen DESC")
     suspend fun seenSinceList(since: Long): List<DeviceEntity>
 
+    @Query("SELECT * FROM devices ORDER BY lastSeen DESC")
+    fun allDevicesFlow(): Flow<List<DeviceEntity>>
+
     @Query(
         """SELECT d.*, GROUP_CONCAT(o.name, ', ') AS objectNames
            FROM devices d

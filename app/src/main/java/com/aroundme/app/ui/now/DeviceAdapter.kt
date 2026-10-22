@@ -10,6 +10,8 @@ import com.aroundme.app.R
 import com.aroundme.app.data.model.DeviceWithObjects
 import com.aroundme.app.data.model.Transport
 import com.aroundme.app.databinding.ItemDeviceBinding
+import com.aroundme.app.util.Category
+import com.aroundme.app.util.DeviceClassifier
 import com.aroundme.app.util.Format
 
 class DeviceAdapter(
@@ -37,7 +39,11 @@ class DeviceAdapter(
             h.b.textObjects.text = item.objectNames
         }
         h.b.badgeMoving.visibility = if (d.movingWithYou) View.VISIBLE else View.GONE
-        h.b.textMeta.text = "×${d.seenCount} · ${Format.ago(d.lastSeen)}"
+        val cat = Category.label(DeviceClassifier.classify(d.transport, d.displayName))
+        val vendor = DeviceClassifier.vendor(d.mac)
+        h.b.textMeta.text =
+            listOfNotNull("×${d.seenCount}", Format.ago(d.lastSeen), cat, vendor)
+                .joinToString(" · ")
         h.b.root.setOnClickListener { onClick(item) }
     }
 
