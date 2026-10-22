@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.aroundme.app.App
 import com.aroundme.app.data.model.DeviceWithObjects
 import com.aroundme.app.databinding.FragmentNowBinding
+import com.aroundme.app.util.Consts
 import com.aroundme.app.scan.ScanService
 import com.aroundme.app.ui.device.DeviceDetailActivity
 import com.aroundme.app.util.Perms
@@ -108,11 +109,16 @@ class NowFragment : Fragment() {
                     db.objectDao().allLinksFlow(),
                     ticker
                 ) { devs, links, _ ->
-                    val cutoff = System.currentTimeMillis() - prefs.hideAfterMs
+                    val now = System.currentTimeMillis()
+                    val cutoff = now - prefs.hideAfterMs
                     val namesByDev = links.groupBy({ it.deviceId }, { it.objectName })
                     devs.filter { it.lastSeen > cutoff }.map {
                         DeviceWithObjects(it, namesByDev[it.id]?.joinToString(", "))
-                    }
+                    }.sortedWith(
+                        compareBy<DeviceWithObjects> {
+                            now - it.device.firstSeen >= Consts.NEW_DEVICE_MS
+                        }.thenByDescending { it.device.lastSeen }
+                    )
                 }.collect { list ->
                     adapter.submitList(list)
                     b.empty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE

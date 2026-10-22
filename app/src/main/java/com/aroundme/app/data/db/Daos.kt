@@ -70,6 +70,9 @@ interface SightingDao {
     @Query("SELECT * FROM sightings WHERE deviceId = :deviceId ORDER BY timestamp DESC LIMIT 1")
     suspend fun lastForDevice(deviceId: String): SightingEntity?
 
+    @Query("SELECT lat, lng FROM sightings WHERE timestamp > :since AND lat IS NOT NULL AND lng IS NOT NULL LIMIT :limit")
+    suspend fun pointsSince(since: Long, limit: Int): List<PointRow>
+
     @Query("SELECT DISTINCT deviceId FROM sightings WHERE timestamp > :since")
     suspend fun deviceIdsSince(since: Long): List<String>
 
@@ -148,6 +151,11 @@ data class DeviceLinkRow(
 data class ObjectWithCount(
     @androidx.room.Embedded val obj: VirtualObjectEntity,
     val deviceCount: Int
+)
+
+data class PointRow(
+    val lat: Double,
+    val lng: Double
 )
 
 @Dao

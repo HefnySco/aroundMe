@@ -25,6 +25,7 @@ class MapFragment : Fragment() {
     private var _b: FragmentMapBinding? = null
     private val b get() = _b!!
     private var plotted = false
+    private var showHeat = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -45,6 +46,13 @@ class MapFragment : Fragment() {
                 prefs.mapMode = if (id == R.id.btnObjects) 1 else 0
                 refreshMarkers()
             }
+        }
+
+        b.btnHeat.alpha = 0.5f
+        b.btnHeat.setOnClickListener {
+            showHeat = !showHeat
+            b.btnHeat.alpha = if (showHeat) 1f else 0.5f
+            refreshMarkers()
         }
     }
 
@@ -82,6 +90,15 @@ class MapFragment : Fragment() {
             val since = System.currentTimeMillis() - MAP_WINDOW_MS
 
             b.map.overlays.clear()
+
+            if (showHeat) {
+                val pts = db.sightingDao().pointsSince(since, MAX_HEAT_POINTS)
+                    .map { it.lat to it.lng }
+                if (pts.isNotEmpty()) {
+                    b.map.overlays.add(HeatOverlay(HeatOverlay.bucketize(pts)))
+                }
+            }
+
             if (prefs.hasLocation) b.map.overlays.add(meMarker())
 
             var count = 0
@@ -156,11 +173,12 @@ class MapFragment : Fragment() {
     companion object {
         private const val MAP_WINDOW_MS = 24 * 3600_000L
         private const val MAX_MARKERS = 150
-        private const val COLOR_WIFI = 0xFF00796B.toInt()
-        private const val COLOR_BT = 0xFF1E88E5.toInt()
-        private const val COLOR_PERSON = 0xFF8E24AA.toInt()
-        private const val COLOR_PLACE = 0xFF00796B.toInt()
-        private const val COLOR_CAR = 0xFFFB8C00.toInt()
-        private const val COLOR_OTHER = 0xFF616161.toInt()
+        private const val MAX_HEAT_POINTS = 5000
+        private const val COLOR_WIFI = 0xFF00BFA5.toInt()
+        private const val COLOR_BT = 0xFF2979FF.toInt()
+        private const val COLOR_PERSON = 0xFFAB47BC.toInt()
+        private const val COLOR_PLACE = 0xFF26A69A.toInt()
+        private const val COLOR_CAR = 0xFFFF7043.toInt()
+        private const val COLOR_OTHER = 0xFF78909C.toInt()
     }
 }
