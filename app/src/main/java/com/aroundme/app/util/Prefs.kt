@@ -47,6 +47,10 @@ class Prefs(context: Context) {
         get() = sp.getInt(KEY_MAP_MODE, 0)
         set(v) = sp.edit().putInt(KEY_MAP_MODE, v).apply()
 
+    var sortMode: Int
+        get() = sp.getInt(KEY_SORT, 0)
+        set(v) = sp.edit().putInt(KEY_SORT, v).apply()
+
     companion object {
         private const val KEY_WIFI = "wifi_scan"
         private const val KEY_BT = "bt_scan"
@@ -58,11 +62,17 @@ class Prefs(context: Context) {
         private const val KEY_HAS_LOC = "has_loc"
         private const val KEY_HIDE = "hide_after"
         private const val KEY_MAP_MODE = "map_mode"
+        private const val KEY_SORT = "sort_mode"
 
         val INTERVAL_OPTIONS = longArrayOf(10_000L, 20_000L, 30_000L, 60_000L, 120_000L)
         val INTERVAL_LABELS = arrayOf("10 s", "20 s", "30 s", "1 min", "2 min")
 
         val HIDE_OPTIONS = longArrayOf(30_000L, 60_000L, 120_000L, 300_000L, 900_000L, 3_600_000L)
         val HIDE_LABELS = arrayOf("30 s", "1 min", "2 min", "5 min", "15 min", "1 h")
+
+        const val SORT_NEWEST = 0
+        const val SORT_LATEST = 1
+        const val SORT_MOST_SEEN = 2
+        val SORT_LABELS = arrayOf("newest appeared", "latest update", "most seen")
     }
 }

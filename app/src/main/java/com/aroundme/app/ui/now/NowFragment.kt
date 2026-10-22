@@ -15,7 +15,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.aroundme.app.App
 import com.aroundme.app.data.model.DeviceWithObjects
 import com.aroundme.app.databinding.FragmentNowBinding
-import com.aroundme.app.util.Consts
 import com.aroundme.app.scan.ScanService
 import com.aroundme.app.ui.device.DeviceDetailActivity
 import com.aroundme.app.util.Perms
@@ -38,6 +37,7 @@ class NowFragment : Fragment() {
     }
     private var spinnerReady = false
     private var hideSpinnerReady = false
+    private var sortSpinnerReady = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -83,6 +83,20 @@ class NowFragment : Fragment() {
             override fun onNothingSelected(p: AdapterView<*>?) {}
         }
 
+        val sortAdapter = ArrayAdapter(
+            requireContext(), android.R.layout.simple_spinner_item, Prefs.SORT_LABELS
+        )
+        sortAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        b.spinnerSort.adapter = sortAdapter
+        b.spinnerSort.setSelection(prefs.sortMode.coerceIn(0, Prefs.SORT_LABELS.size - 1))
+        b.spinnerSort.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                if (sortSpinnerReady) prefs.sortMode = pos
+                sortSpinnerReady = true
+            }
+            override fun onNothingSelected(p: AdapterView<*>?) {}
+        }
+
         b.switchWifi.isChecked = prefs.wifiScan
         b.switchBt.isChecked = prefs.btScan
         b.switchWifi.setOnCheckedChangeListener { _, v -> prefs.wifiScan = v }
@@ -114,11 +128,13 @@ class NowFragment : Fragment() {
                     val namesByDev = links.groupBy({ it.deviceId }, { it.objectName })
                     devs.filter { it.lastSeen > cutoff }.map {
                         DeviceWithObjects(it, namesByDev[it.id]?.joinToString(", "))
-                    }.sortedWith(
-                        compareBy<DeviceWithObjects> {
-                            now - it.device.firstSeen >= Consts.NEW_DEVICE_MS
-                        }.thenByDescending { it.device.lastSeen }
-                    )
+                    }.let { list ->
+                        when (prefs.sortMode) {
+                            Prefs.SORT_LATEST -> list.sortedByDescending { it.device.lastSeen }
+                            Prefs.SORT_MOST_SEEN -> list.sortedByDescending { it.device.seenCount }
+                            else -> list.sortedByDescending { it.device.firstSeen }
+                        }
+                    }
                 }.collect { list ->
                     adapter.submitList(list)
                     b.empty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
