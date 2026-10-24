@@ -5,4 +5,5 @@
     <string name="tab_objects">Objects</string>
     <string name="tab_map">Map</string>
     <string name="tab_alerts">Alerts</string>
+    <string name="tab_history">History</string>
 </resources>

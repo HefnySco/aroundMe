@@ -1,6 +1,25 @@
+# Gradle / build output
 .gradle/
 build/
 app/build/
+.cxx/
+
+# Kotlin build cache
+.kotlin/
+
+# Local config
 local.properties
+
+# IDE
 *.iml
 .idea/
+.vscode/
+
+# Signing / artifacts
+*.keystore
+*.jks
+*.apk
+*.aab
+
+# OS
+.DS_Store

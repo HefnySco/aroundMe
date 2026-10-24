@@ -18,7 +18,9 @@ import com.aroundme.app.util.Format
 data class NowItem(
     val device: DeviceEntity,
     val objectNames: String?,
-    val memberCount: Int
+    val memberCount: Int,
+    val nameOverride: String? = null,
+    val macOverride: String? = null
 )
 
 class DeviceAdapter(
@@ -49,10 +51,11 @@ class DeviceAdapter(
             if (d.transport == Transport.WIFI_AP) COLOR_WIFI else COLOR_BT
         )
         val merged = if (item.memberCount > 1) "  ·  ×${item.memberCount} MACs" else ""
-        h.b.textName.text =
-            (d.displayName?.takeIf { it.isNotBlank() } ?: "(no name)") + merged
+        h.b.textName.text = item.nameOverride
+            ?: ((d.displayName?.takeIf { it.isNotBlank() } ?: "(no name)") + merged)
         val rand = if (d.randomizedMac) "  ·  random MAC" else ""
-        h.b.textMac.text = "${d.mac}  ·  ${Transport.label(d.transport)}$rand"
+        h.b.textMac.text = item.macOverride
+            ?: "${d.mac}  ·  ${Transport.label(d.transport)}$rand"
         if (item.objectNames.isNullOrBlank()) {
             h.b.textObjects.visibility = View.GONE
         } else {

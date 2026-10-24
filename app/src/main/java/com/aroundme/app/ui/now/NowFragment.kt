@@ -20,6 +20,7 @@ import com.aroundme.app.ui.device.DeviceDetailActivity
 import com.aroundme.app.util.Perms
 import com.aroundme.app.util.Prefs
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
@@ -38,6 +39,7 @@ class NowFragment : Fragment() {
     private var spinnerReady = false
     private var hideSpinnerReady = false
     private var sortSpinnerReady = false
+    private val clearedBump = MutableStateFlow(0)
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -106,6 +108,11 @@ class NowFragment : Fragment() {
             startActivity(Intent(requireContext(), SettingsActivity::class.java))
         }
 
+        b.btnClearList.setOnClickListener {
+            prefs.clearedAtMs = System.currentTimeMillis()
+            clearedBump.value++
+        }
+
         b.switchTracking.setOnCheckedChangeListener { _, checked ->
             if (checked) startTracking() else {
                 ScanService.stop(requireContext())
@@ -125,14 +132,23 @@ class NowFragment : Fragment() {
                 combine(
                     db.deviceDao().allDevicesFlow(),
                     db.objectDao().allLinksFlow(),
-                    ticker
-                ) { devs, links, _ ->
+                    ticker,
+                    clearedBump
+                ) { devs, links, _, _ ->
                     val now = System.currentTimeMillis()
                     val cutoff = now - prefs.hideAfterMs
+                    val clearedAt = prefs.clearedAtMs
                     val namesByDev = links.groupBy({ it.deviceId }, { it.objectName })
-                    val visible = devs.filter { it.lastSeen > cutoff }.map {
-                        NowItem(it, namesByDev[it.id]?.joinToString(", "), 1)
-                    }
+                    val visible = devs.filter { it.lastSeen > cutoff && it.lastSeen > clearedAt }
+                        .filter { d ->
+                            !prefs.hideNamelessBt ||
+                                !d.randomizedMac ||
+                                !d.displayName.isNullOrBlank() ||
+                                namesByDev[d.id] != null
+                        }
+                        .map {
+                            NowItem(it, namesByDev[it.id]?.joinToString(", "), 1)
+                        }
                     val merged = if (!prefs.groupByName) visible else {
                         val map = LinkedHashMap<String, NowItem>()
                         for (item in visible) {
@@ -158,7 +174,7 @@ class NowFragment : Fragment() {
                     adapter.submitList(list)
                     b.empty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
                     b.textStatus.text =
-                        if (ScanService.isRunning) "Tracking — ${list.size} devices around"
+                        if (prefs.serviceRunning) "Tracking — ${list.size} devices around"
                         else "Tracking is off — showing last seen"
                 }
             }
@@ -192,7 +208,7 @@ class NowFragment : Fragment() {
 
     private fun refreshSwitch() {
         b.switchTracking.setOnCheckedChangeListener(null)
-        b.switchTracking.isChecked = ScanService.isRunning
+        b.switchTracking.isChecked = prefs.serviceRunning
         b.switchTracking.setOnCheckedChangeListener { _, checked ->
             if (checked) startTracking() else {
                 ScanService.stop(requireContext())

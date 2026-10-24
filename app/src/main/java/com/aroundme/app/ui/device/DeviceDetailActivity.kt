@@ -1,5 +1,6 @@
 package com.aroundme.app.ui.device
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -20,7 +21,9 @@ import com.aroundme.app.data.model.Transport
 import com.aroundme.app.data.model.VirtualObjectEntity
 import com.aroundme.app.databinding.ActivityDeviceDetailBinding
 import com.aroundme.app.databinding.ItemSessionBinding
+import com.aroundme.app.ui.objects.ObjectDetailActivity
 import com.aroundme.app.util.Category
+import com.google.android.material.chip.Chip
 import com.aroundme.app.util.DeviceClassifier
 import com.aroundme.app.util.Format
 import com.aroundme.app.util.Geo
@@ -69,8 +72,30 @@ class DeviceDetailActivity : AppCompatActivity() {
         b.textName.text = device.displayName?.takeIf { it.isNotBlank() } ?: "(no name)"
         b.textMac.text = "${device.mac}  ·  ${Transport.label(device.transport)}"
         b.btnAttachName.isEnabled = !device.displayName.isNullOrBlank()
-        val objText = if (objects.isEmpty()) "not linked to any object"
-        else "linked to: " + objects.joinToString(", ") { "${it.name} (${ObjectType.label(it.type)})" }
+        val directIds = db.objectDao().directObjectIds(deviceId).toSet()
+        b.chipsObjects.removeAllViews()
+        b.chipsObjects.visibility = if (objects.isEmpty()) View.GONE else View.VISIBLE
+        b.textNoObjects.visibility = if (objects.isEmpty()) View.VISIBLE else View.GONE
+        for (o in objects) {
+            val viaMac = o.id in directIds
+            val viaName = !device.displayName.isNullOrBlank() &&
+                device.displayName in db.objectDao().namesForObject(o.id)
+            val via = when {
+                viaMac && viaName -> "MAC+name"
+                viaName -> "name"
+                else -> "MAC"
+            }
+            val chip = Chip(this).apply {
+                text = "${o.name} (${ObjectType.label(o.type)}) · via $via"
+                setOnClickListener {
+                    startActivity(
+                        Intent(this@DeviceDetailActivity, ObjectDetailActivity::class.java)
+                            .putExtra(ObjectDetailActivity.EXTRA_OBJECT_ID, o.id)
+                    )
+                }
+            }
+            b.chipsObjects.addView(chip)
+        }
         val rand = if (device.randomizedMac) "  ·  random MAC" else ""
         val moving = if (device.movingWithYou) "  ·  ⚠ moving with you" else ""
         val cat = Category.label(
@@ -81,7 +106,7 @@ class DeviceDetailActivity : AppCompatActivity() {
         )
         val vendor = DeviceClassifier.vendor(device.mac, device.companyId)
         val typeText = listOfNotNull(cat, vendor).joinToString(" · ")
-        b.textMeta.text = "$objText\nseen ×${device.seenCount} · first ${Format.dayTime(device.firstSeen)} · last ${Format.ago(device.lastSeen)}$rand$moving" +
+        b.textMeta.text = "seen ×${device.seenCount} · first ${Format.dayTime(device.firstSeen)} · last ${Format.ago(device.lastSeen)}$rand$moving" +
             if (typeText.isNotBlank()) "\ntype: $typeText" else ""
 
         val sightings = db.sightingDao().forDevice(deviceId)

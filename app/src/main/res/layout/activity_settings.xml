@@ -21,6 +21,22 @@
         android:text="Devices with randomized MACs that advertise the same name (e.g. rotating router APs) are shown as one row in the Now list."
         android:textSize="12sp" />
 
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/switchHideNameless"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Hide nameless random-MAC devices"
+        android:textSize="16sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="14dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="12dp"
+        android:text="Wi-Fi APs and BLE/BT devices with a randomized MAC and no advertised name carry no useful identity. They are hidden from the Now list unless linked to an object."
+        android:textSize="12sp" />
+
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"

@@ -389,11 +389,18 @@ class ScanService : LifecycleService() {
             private set
 
         fun start(context: Context) {
+            Prefs(context).serviceRunning = true
             val i = Intent(context, ScanService::class.java).setAction(ACTION_START)
-            ContextCompat.startForegroundService(context, i)
+            try {
+                ContextCompat.startForegroundService(context, i)
+            } catch (t: Throwable) {
+                Prefs(context).serviceRunning = false
+                throw t
+            }
         }
 
         fun stop(context: Context) {
+            Prefs(context).serviceRunning = false
             val i = Intent(context, ScanService::class.java).setAction(ACTION_STOP)
             context.startService(i)
         }

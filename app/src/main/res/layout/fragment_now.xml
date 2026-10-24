@@ -105,6 +105,18 @@
                     android:id="@+id/spinnerSort"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnClearList"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Clear list"
+                    style="@style/Widget.Material3.Button.TextButton" />
             </LinearLayout>
 
             <TextView

@@ -7,6 +7,7 @@ import androidx.fragment.app.Fragment
 import com.aroundme.app.R
 import com.aroundme.app.databinding.ActivityMainBinding
 import com.aroundme.app.ui.alerts.AlertsFragment
+import com.aroundme.app.ui.history.HistoryFragment
 import com.aroundme.app.ui.map.MapFragment
 import com.aroundme.app.ui.now.NowFragment
 import com.aroundme.app.ui.objects.ObjectsFragment
@@ -53,6 +54,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_objects -> ObjectsFragment()
                 R.id.nav_map -> MapFragment()
                 R.id.nav_alerts -> AlertsFragment()
+                R.id.nav_history -> HistoryFragment()
                 else -> NowFragment()
             }
             tx.add(R.id.container, f, tag)

@@ -30,6 +30,25 @@
             android:textSize="12sp"
             android:paddingVertical="4dp" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Belongs to"
+            android:textStyle="bold"
+            android:paddingTop="4dp" />
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipsObjects"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:id="@+id/textNoObjects"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Not linked to any object yet."
+            android:textSize="12sp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

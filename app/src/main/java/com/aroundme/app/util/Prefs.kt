@@ -55,6 +55,14 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_GROUP_NAME, false)
         set(v) = sp.edit().putBoolean(KEY_GROUP_NAME, v).apply()
 
+    var hideNamelessBt: Boolean
+        get() = sp.getBoolean(KEY_HIDE_NAMELESS, true)
+        set(v) = sp.edit().putBoolean(KEY_HIDE_NAMELESS, v).apply()
+
+    var clearedAtMs: Long
+        get() = sp.getLong(KEY_CLEARED_AT, 0L)
+        set(v) = sp.edit().putLong(KEY_CLEARED_AT, v).apply()
+
     companion object {
         private const val KEY_WIFI = "wifi_scan"
         private const val KEY_BT = "bt_scan"
@@ -68,6 +76,8 @@ class Prefs(context: Context) {
         private const val KEY_MAP_MODE = "map_mode"
         private const val KEY_SORT = "sort_mode"
         private const val KEY_GROUP_NAME = "group_by_name"
+        private const val KEY_HIDE_NAMELESS = "hide_nameless_bt"
+        private const val KEY_CLEARED_AT = "cleared_at_ms"
 
         val INTERVAL_OPTIONS = longArrayOf(10_000L, 20_000L, 30_000L, 60_000L, 120_000L)
         val INTERVAL_LABELS = arrayOf("10 s", "20 s", "30 s", "1 min", "2 min")

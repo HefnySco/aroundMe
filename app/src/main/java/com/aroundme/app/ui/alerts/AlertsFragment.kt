@@ -49,6 +49,19 @@ class AlertsFragment : Fragment() {
         b.list.layoutManager = LinearLayoutManager(requireContext())
         b.list.adapter = adapter
 
+        b.btnClearAll.setOnClickListener {
+            androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("Clear all alerts?")
+                .setMessage("This deletes all recorded alerts.")
+                .setPositiveButton("Clear") { _, _ ->
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        (requireActivity().application as App).db.alertDao().clearAll()
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 (requireActivity().application as App).db.alertDao().allFlow()

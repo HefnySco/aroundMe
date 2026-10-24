@@ -23,6 +23,9 @@ class SettingsActivity : AppCompatActivity() {
         b.switchMerge.isChecked = prefs.groupByName
         b.switchMerge.setOnCheckedChangeListener { _, v -> prefs.groupByName = v }
 
+        b.switchHideNameless.isChecked = prefs.hideNamelessBt
+        b.switchHideNameless.setOnCheckedChangeListener { _, v -> prefs.hideNamelessBt = v }
+
         b.btnClear.setOnClickListener {
             AlertDialog.Builder(this)
                 .setTitle("Clear collected data?")
