@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo.svg" width="128" alt="Around Me logo" />
+</p>
+
 # Around Me
 
 An Android app that passively scans nearby Wi-Fi access points and Bluetooth
